@@ -412,6 +412,12 @@
                 cleanLink += `&id=${exactId}`;
             }
 
+            // Forward uid so gallery can fetch user-scoped stickers
+            const exactUid = mainUrlParams.get('uid');
+            if (exactUid) {
+                cleanLink += `&uid=${exactUid}`;
+            }
+
             const exactStickers = mainUrlParams.get('userStickers');
             if (exactStickers) {
                 cleanLink += `&userStickers=${exactStickers}`;

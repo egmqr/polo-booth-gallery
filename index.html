@@ -870,8 +870,8 @@
             return exactId.toLowerCase().trim();
         }
 
-        // 2. Failsafe: Just in case, scan the raw URL text for "egm" followed by numbers
-        const rawMatch = window.location.href.match(/egm\d+/i);
+        // 2. Failsafe: scan for egm#### or evt#### patterns
+        const rawMatch = window.location.href.match(/(egm|evt)\d+/i);
         if (rawMatch) return rawMatch[0].toLowerCase();
 
         return 'unknown';

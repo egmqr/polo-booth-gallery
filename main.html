@@ -268,7 +268,8 @@
 
                 if (docSnap.exists()) {
                     window.hideLoader(); 
-                    window.buildPageContent(docSnap.data(), requestedTab);
+                    // 🟢 FIX 1: Pass uid and eventId down to the builder
+                    window.buildPageContent(docSnap.data(), requestedTab, uid, eventId);
                 } else {
                     document.getElementById('loader-msg').innerText = "Event Not Found";
                 }
@@ -286,7 +287,7 @@
                 bgColor: '#000000',
                 logoOnMain: true, 
                 booths: 'https://egmqr.github.io/photo-viewer/index.html?folderId=13fAzmvuXHgOfN6FVXfu7Mbk6Sb0_xXVo&booth=1|https://egmqr.github.io/photo-viewer/index.html?folderId=1vcSQbJIr945g71SinfzNYxs7AmMV7V-9&booth=2'
-            }, requestedTab);
+            }, requestedTab, null, null); // 🟢 Pass null for defaults
         }
     }
 
@@ -297,7 +298,7 @@
         initializeEvent();
     }
 
-    window.buildPageContent = function(data, requestedTab) {
+    window.buildPageContent = function(data, requestedTab, uid, eventId) {
         const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
         const defaultLogoId = 'egm_fav copy';
         const fontColor = data.fontColor || '#ffffff';
@@ -305,40 +306,51 @@
         
         const logoOnMain = data.logoOnMain === true; 
 
+        // 🟢 FIX 3: Dynamically generate correct R2 Paths (with legacy fallbacks)
+        const defaultLogoUrl = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
+        let customLogoUrl = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
+        if (uid && eventId && customLogoId !== 'egm_fav copy') {
+            customLogoUrl = `https://cdn.polo-booth.com/users/${uid}/events/${eventId}/assets/logos/${customLogoId}.png`;
+        }
+
         document.getElementById('event-title').innerText = data.eventName;
         
         const logoContainer = document.getElementById('logo-container');
         const headerLogo = document.getElementById('header-logo');
         
-        // 🟢 THE FIX: Attach onload event BEFORE giving it the image source!
         headerLogo.onload = function() {
             logoContainer.style.opacity = '1';
             logoContainer.style.pointerEvents = 'auto';
         };
         
         if (logoOnMain) {
-            headerLogo.src = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
+            headerLogo.src = customLogoUrl; // 🟢 Apply Custom URL
             logoContainer.removeAttribute('href');
             logoContainer.removeAttribute('target');
             logoContainer.style.cursor = 'default';
-            document.getElementById('dynamic-favicon').href = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
+            document.getElementById('dynamic-favicon').href = customLogoUrl;
         } else {
-            headerLogo.src = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
+            headerLogo.src = defaultLogoUrl; // 🟢 Apply Default URL
             logoContainer.setAttribute('href', 'https://www.facebook.com/egmproductions');
             logoContainer.setAttribute('target', '_blank');
             logoContainer.style.cursor = 'pointer';
-            document.getElementById('dynamic-favicon').href = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
+            document.getElementById('dynamic-favicon').href = defaultLogoUrl;
         }
         
-        // 🟢 THE FIX: Failsafe for instantly cached images
         if (headerLogo.complete) {
             logoContainer.style.opacity = '1';
             logoContainer.style.pointerEvents = 'auto';
         }
         
         document.body.style.backgroundColor = bgColor;
+        
         if (data.bgId && data.bgId.trim() !== '') {
-            document.body.style.backgroundImage = `url('https://cdn.polo-booth.com/assets/backgrounds/${data.bgId}.jpg')`;
+            // 🟢 FIX 4: Dynamically generate Background R2 Path
+            let bgUrl = `https://cdn.polo-booth.com/assets/backgrounds/${data.bgId}.jpg`;
+            if (uid && eventId) {
+                bgUrl = `https://cdn.polo-booth.com/users/${uid}/events/${eventId}/assets/backgrounds/${data.bgId}.jpg`;
+            }
+            document.body.style.backgroundImage = `url('${bgUrl}')`;
         } else {
             document.body.style.backgroundImage = 'none';
         }

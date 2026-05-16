@@ -855,7 +855,7 @@
   </div>
   <script>
     // IMPORTANT: Make sure this points to your unified backend Apps Script URL
-    const API_URL = "https://api.createdbyegm.com";
+    const API_URL = "https://api.polo-booth.com";
 
     const urlParams = new URLSearchParams(window.location.search);
     const targetPrefix = urlParams.get('prefix') || urlParams.get('folderId'); // R2: use prefix param
@@ -1014,10 +1014,12 @@
       if (window.globalEventId !== 'unknown') {
           const exactStickerId = window.globalEventId;
           const baseStickerId = window.globalEventId.split('_')[0];
+          const uid = urlParams.get('uid') || '';
           
           const fetchStickers = async (eventIdToUse) => {
-              const r2Prefix = `events/${eventIdToUse}/user-stickers`;
-              // 👇 THE FIX: Added &c=${Date.now()} to shatter the mobile browser cache!
+              const r2Prefix = uid 
+                  ? `users/${uid}/events/${eventIdToUse}/user-stickers`
+                  : `events/${eventIdToUse}/user-stickers`; // fallback for old links
               const res = await fetch(`${API_URL}/api/gallery?prefix=${encodeURIComponent(r2Prefix)}&limit=100&c=${Date.now()}`);
               
               if (!res.ok) throw new Error("Network response was not ok");

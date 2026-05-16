@@ -299,16 +299,16 @@
     }
 
     window.buildPageContent = function(data, requestedTab, uid, eventId) {
-        const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
-        const defaultLogoId = 'egm_fav copy';
+        //const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
+        //const defaultLogoId = 'egm_fav copy';
         const fontColor = data.fontColor || '#ffffff';
         const bgColor = data.bgColor || '#000000';
         
         const logoOnMain = data.logoOnMain === true; 
 
         // 🟢 FIX 3: Dynamically generate correct R2 Paths (with legacy fallbacks)
-        const defaultLogoUrl = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
-        let customLogoUrl = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
+        const defaultLogoUrl = `https://cdn.createdbyegm.com/assets/logos/egm_fav%20copy.png`;
+        let customLogoUrl = `https://cdn.createdbyegm.com/assets/logos/egm_fav%20copy.png`;
         if (uid && eventId && customLogoId !== 'egm_fav copy') {
             customLogoUrl = `https://cdn.polo-booth.com/users/${uid}/events/${eventId}/assets/logos/${customLogoId}.png`;
         }

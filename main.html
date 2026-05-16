@@ -224,13 +224,12 @@
     // PASTE YOUR FIREBASE CONFIG OBJECT BELOW
     // ==========================================
     const firebaseConfig = {
-        apiKey: "AIzaSyADWnFhu2xZwGQERFsxP-Xl_OlEaJ6N3NM",
-        authDomain: "event-database-78db0.firebaseapp.com",
-        projectId: "event-database-78db0",
-        storageBucket: "event-database-78db0.firebasestorage.app",
-        messagingSenderId: "130288942287",
-        appId: "1:130288942287:web:68d24ee8d0ef1ae9408bba",
-        measurementId: "G-KCKB2P58QY"
+        apiKey: "AIzaSyBPZ-xvICeT52ftMRiYJ_N89k6g8kVRE5Y",
+        authDomain: "probooth-production.firebaseapp.com",
+        projectId: "probooth-production",
+        storageBucket: "probooth-production.appspot.com",
+        messagingSenderId: "415004603008",
+        appId: "1:415004603008:web:2a4b7b033cd94cc388ac65"
     };
 
     // 1. IMPORT LITE SDKs AT THE TOP LEVEL for parallel downloading
@@ -258,7 +257,13 @@
 
         if (eventId && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY_HERE") {
             try {
-                const docRef = doc(db, "events", eventId);
+                const uid = params.get('uid');
+                let docRef;
+                if (uid) {
+                    docRef = doc(db, "users", uid, "events", eventId);
+                } else {
+                    docRef = doc(db, "events", eventId); // fallback for old links
+                }
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
@@ -312,17 +317,17 @@
         };
         
         if (logoOnMain) {
-            headerLogo.src = `https://cdn.createdbyegm.com/assets/logos/${customLogoId}.png`;
+            headerLogo.src = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
             logoContainer.removeAttribute('href');
             logoContainer.removeAttribute('target');
             logoContainer.style.cursor = 'default';
-            document.getElementById('dynamic-favicon').href = `https://cdn.createdbyegm.com/assets/logos/${customLogoId}.png`;
+            document.getElementById('dynamic-favicon').href = `https://cdn.polo-booth.com/assets/logos/${customLogoId}.png`;
         } else {
-            headerLogo.src = `https://cdn.createdbyegm.com/assets/logos/${defaultLogoId}.png`;
+            headerLogo.src = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
             logoContainer.setAttribute('href', 'https://www.facebook.com/egmproductions');
             logoContainer.setAttribute('target', '_blank');
             logoContainer.style.cursor = 'pointer';
-            document.getElementById('dynamic-favicon').href = `https://cdn.createdbyegm.com/assets/logos/${defaultLogoId}.png`;
+            document.getElementById('dynamic-favicon').href = `https://cdn.polo-booth.com/assets/logos/${defaultLogoId}.png`;
         }
         
         // 🟢 THE FIX: Failsafe for instantly cached images
@@ -333,7 +338,7 @@
         
         document.body.style.backgroundColor = bgColor;
         if (data.bgId && data.bgId.trim() !== '') {
-            document.body.style.backgroundImage = `url('https://cdn.createdbyegm.com/assets/backgrounds/${data.bgId}.jpg')`;
+            document.body.style.backgroundImage = `url('https://cdn.polo-booth.com/assets/backgrounds/${data.bgId}.jpg')`;
         } else {
             document.body.style.backgroundImage = 'none';
         }

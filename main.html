@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    
+    <link rel="icon" id="dynamic-favicon" href="data:image/x-icon;base64,">
+    
+    <style>
+    /* 1. LAYOUT RESET (MOBILE FIRST) */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        overscroll-behavior-y: none; 
+        font-family: Montserrat, Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+        background-color: #000; 
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 2. HEADER SECTION */
+    .header-wrapper {
+        flex: 0 0 auto;
+        background-color: rgba(0, 0, 0, 0.5); 
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        z-index: 10;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding-top: env(safe-area-inset-top); 
+    }
+
+    .header-top-row {
+        display: block;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 15px 5px 15px;
+    }
+
+    .logo-link {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+    }
+
+    .logo-link img {
+        height: 40px;
+        width: auto;
+        object-fit: contain;
+        display: block;
+    }
+
+    .header-spacer {
+        width: 40px; 
+        flex: 0 0 auto;
+    }
+
+    h1.page-title {
+        margin: 0;
+        padding: 10px;
+        text-align: center;
+        font-size: 18px; 
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 1px;
+        white-space: normal; 
+        line-height: 1.3;
+        word-wrap: break-word;
+        flex: 1;
+    }
+
+    .nav-container {
+        display: flex;
+        justify-content: flex-start;
+        width: 100%;
+        overflow-x: auto; 
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch; 
+        scrollbar-width: none; 
+        padding: 0 5px 2px 5px; 
+        box-sizing: border-box;
+    }
+
+    .nav-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-tab {
+        flex: 0 0 auto; 
+        padding: 14px 18px; 
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.5);
+        border-bottom: 3px solid transparent;
+        transition: all 0.25s ease;
+        white-space: nowrap; 
+        outline: none;
+    }
+
+    .nav-tab.active {
+        color: #fff;
+        border-bottom: 3px solid #fff;
+        text-shadow: 1px 1px 3px rgba(0,0,0,1);
+    }
+
+    /* 3. IFRAME AREA & SPINNER */
+    .iframe-container {
+        flex: 1;
+        position: relative;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .global-loader {
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        z-index: 1;
+    }
+    
+    .spinner {
+        width: 32px;
+        height: 32px;
+        border: 4px solid rgba(255, 255, 255, 0.2);
+        border-top: 4px solid #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+/* 🟢 IFRAME FULLSCREEN OVERRIDE */
+    .iframe-fullscreen-mode {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2147483647 !important; /* Forces it over absolutely everything */
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .loader-text {
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+    }
+
+    .app-iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease, visibility 0.3s;
+        z-index: 2; 
+        background: transparent;
+    }
+
+    .app-iframe.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    /* 4. TABLET & DESKTOP SCALING */
+    @media (min-width: 768px) {
+        h1.page-title { font-size: 24px; }
+        .header-top-row { padding: 15px 25px 5px 25px; }
+        .nav-container { justify-content: center; }
+        .nav-tab { padding: 16px 24px; font-size: 15px; border-bottom: 4px solid transparent; }
+        .nav-tab.active { border-bottom: 4px solid #fff; }
+        .spinner { width: 40px; height: 40px; }
+        .loader-text { font-size: 15px; }
+    }
+    </style>
+</head>
+<body>
+
+    <div class="header-wrapper">
+        <div class="header-top-row">
+            <a class="logo-link" id="logo-container" style="opacity: 0; pointer-events: none; transition: opacity 0.3s ease;">
+                <img id="header-logo" alt="Logo">
+            </a>
+            <h1 class="page-title" id="event-title">Loading...</h1>
+            <div class="header-spacer"></div>
+        </div>
+        <div class="nav-container" id="nav-container"></div>
+    </div>
+
+    <div class="iframe-container" id="iframe-container">
+        <div class="global-loader" id="main-loader">
+            <div class="spinner"></div>
+            <div class="loader-text" id="loader-msg">Fetching Event Data...</div>
+        </div>
+    </div>
+
+    <script type="module">
+    // ==========================================
+    // PASTE YOUR FIREBASE CONFIG OBJECT BELOW
+    // ==========================================
+    const firebaseConfig = {
+        apiKey: "AIzaSyADWnFhu2xZwGQERFsxP-Xl_OlEaJ6N3NM",
+        authDomain: "event-database-78db0.firebaseapp.com",
+        projectId: "event-database-78db0",
+        storageBucket: "event-database-78db0.firebasestorage.app",
+        messagingSenderId: "130288942287",
+        appId: "1:130288942287:web:68d24ee8d0ef1ae9408bba",
+        measurementId: "G-KCKB2P58QY"
+    };
+
+    // 1. IMPORT LITE SDKs AT THE TOP LEVEL for parallel downloading
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-lite.js";
+
+    // 2. INITIALIZE FIREBASE IMMEDIATELY
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Attach to window so module scope can reach them
+    window.hideLoader = function() {
+        document.getElementById('main-loader').style.display = 'none';
+    };
+
+    window.showLoader = function() {
+        document.getElementById('main-loader').style.display = 'flex';
+    };
+
+    // 3. FETCH DATA ON LOAD (Bulletproof Initialization)
+    async function initializeEvent() {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('id');
+        let requestedTab = parseInt(params.get('tab'), 10) || 1;
+
+        if (eventId && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY_HERE") {
+            try {
+                const docRef = doc(db, "events", eventId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    window.hideLoader(); 
+                    window.buildPageContent(docSnap.data(), requestedTab);
+                } else {
+                    document.getElementById('loader-msg').innerText = "Event Not Found";
+                }
+            } catch (err) {
+                document.getElementById('loader-msg').innerText = "Database Error";
+                console.error("Firebase Fetch Error:", err);
+            }
+        } else {
+            document.getElementById('loader-msg').innerText = "Loading Default...";
+            window.buildPageContent({
+                eventName: 'Default Event',
+                bgId: '',
+                logoId: '',
+                fontColor: '#ffffff',
+                bgColor: '#000000',
+                logoOnMain: true, 
+                booths: 'https://egmqr.github.io/photo-viewer/index.html?folderId=13fAzmvuXHgOfN6FVXfu7Mbk6Sb0_xXVo&booth=1|https://egmqr.github.io/photo-viewer/index.html?folderId=1vcSQbJIr945g71SinfzNYxs7AmMV7V-9&booth=2'
+            }, requestedTab);
+        }
+    }
+
+    // 🟢 THE FIX: Guarantee the script runs regardless of module loading speeds
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeEvent);
+    } else {
+        initializeEvent();
+    }
+
+    window.buildPageContent = function(data, requestedTab) {
+        const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
+        const defaultLogoId = 'egm_fav copy';
+        const fontColor = data.fontColor || '#ffffff';
+        const bgColor = data.bgColor || '#000000';
+        
+        const logoOnMain = data.logoOnMain === true; 
+
+        document.getElementById('event-title').innerText = data.eventName;
+        
+        const logoContainer = document.getElementById('logo-container');
+        const headerLogo = document.getElementById('header-logo');
+        
+        // 🟢 THE FIX: Attach onload event BEFORE giving it the image source!
+        headerLogo.onload = function() {
+            logoContainer.style.opacity = '1';
+            logoContainer.style.pointerEvents = 'auto';
+        };
+        
+        if (logoOnMain) {
+            headerLogo.src = `https://cdn.createdbyegm.com/assets/logos/${customLogoId}.png`;
+            logoContainer.removeAttribute('href');
+            logoContainer.removeAttribute('target');
+            logoContainer.style.cursor = 'default';
+            document.getElementById('dynamic-favicon').href = `https://cdn.createdbyegm.com/assets/logos/${customLogoId}.png`;
+        } else {
+            headerLogo.src = `https://cdn.createdbyegm.com/assets/logos/${defaultLogoId}.png`;
+            logoContainer.setAttribute('href', 'https://www.facebook.com/egmproductions');
+            logoContainer.setAttribute('target', '_blank');
+            logoContainer.style.cursor = 'pointer';
+            document.getElementById('dynamic-favicon').href = `https://cdn.createdbyegm.com/assets/logos/${defaultLogoId}.png`;
+        }
+        
+        // 🟢 THE FIX: Failsafe for instantly cached images
+        if (headerLogo.complete) {
+            logoContainer.style.opacity = '1';
+            logoContainer.style.pointerEvents = 'auto';
+        }
+        
+        document.body.style.backgroundColor = bgColor;
+        if (data.bgId && data.bgId.trim() !== '') {
+            document.body.style.backgroundImage = `url('https://cdn.createdbyegm.com/assets/backgrounds/${data.bgId}.jpg')`;
+        } else {
+            document.body.style.backgroundImage = 'none';
+        }
+
+        const dynamicStyles = document.createElement('style');
+        dynamicStyles.innerHTML = `
+            h1.page-title { color: ${fontColor}; }
+            .loader-text { color: ${fontColor}; }
+            .spinner { border-top-color: ${fontColor}; }
+            .nav-tab { color: ${fontColor}80; } 
+            .nav-tab.active { color: ${fontColor}; border-bottom-color: ${fontColor}; }
+            @media (min-width: 768px) {
+                .nav-tab.active { border-bottom-color: ${fontColor}; }
+            }
+        `;
+        document.head.appendChild(dynamicStyles);
+
+        let boothLinks = data.booths ? data.booths.split('|').filter(link => link.trim() !== '') : [];
+
+        if (requestedTab > boothLinks.length) {
+            requestedTab = 1;
+        }
+        
+        const activeIndex = requestedTab - 1; 
+        const navContainer = document.getElementById('nav-container');
+        const iframeContainer = document.getElementById('iframe-container');
+
+        if (boothLinks.length <= 1) {
+            navContainer.style.display = 'none';
+            document.querySelector('.header-top-row').style.paddingBottom = '10px';
+        }
+
+        boothLinks.forEach((rawLink, index) => {
+            const boothNum = index + 1;
+            const frameId = `frame-${boothNum}`;
+            const isTargetActive = (index === activeIndex);
+
+            let cleanLink = rawLink;
+            const folderMatch = rawLink.match(/folderId=([a-zA-Z0-9_-]+)/);
+            const prefixMatch = rawLink.match(/[?&]prefix=([^&]+)/);
+            const tabMatch = rawLink.match(/tab=([a-zA-Z0-9_-]+)/);
+            const isCommunity = rawLink.includes('isCommunity=true');
+
+            let tabLabel = isCommunity ? 'Community Booth' : `Photobooth ${boothNum}`;
+
+            if (prefixMatch) {
+                // R2 booth — load photo-viewer index.html with prefix param
+                const prefix = decodeURIComponent(prefixMatch[1]);
+                cleanLink = `index.html?prefix=${encodeURIComponent(prefix)}`;
+            } else if (folderMatch) {
+                // Legacy Drive booth link
+                cleanLink = `index.html?folderId=${folderMatch[1]}`;
+
+                if (tabMatch) {
+                    cleanLink += `&tab=${tabMatch[1]}`;
+                    if (tabMatch[1] === 'community') {
+                        tabLabel = "Community Booth";
+                    }
+                }
+            }
+
+            // 🟢 UNIVERSAL PARAM FORWARDING — applies to both R2 and Legacy booths
+            if (isCommunity) {
+                cleanLink += `&isCommunity=true`;
+            }
+
+            const mainUrlParams = new URLSearchParams(window.location.search);
+
+            const exactId = mainUrlParams.get('id');
+            if (exactId) {
+                cleanLink += `&id=${exactId}`;
+            }
+
+            const exactStickers = mainUrlParams.get('userStickers');
+            if (exactStickers) {
+                cleanLink += `&userStickers=${exactStickers}`;
+            } else {
+                const stickerMatch = rawLink.match(/userStickers=(true|false)/);
+                if (stickerMatch) cleanLink += `&userStickers=${stickerMatch[1]}`;
+            }
+
+            if (boothLinks.length > 1) {
+                const btn = document.createElement('button');
+                btn.className = `nav-tab ${isTargetActive ? 'active' : ''}`;
+                btn.setAttribute('data-target', frameId);
+                btn.innerText = tabLabel; 
+                navContainer.appendChild(btn);
+            }
+
+            const iframe = document.createElement('iframe');
+            iframe.id = frameId;
+            iframe.className = `app-iframe ${isTargetActive ? 'active' : ''}`;
+            
+            if (isTargetActive) {
+                iframe.src = cleanLink;
+            } else {
+                iframe.setAttribute('data-src', cleanLink);
+            }
+            
+            iframeContainer.appendChild(iframe);
+        });
+
+        setTimeout(() => {
+            const activeTabBtn = document.querySelector('.nav-tab.active');
+            if (activeTabBtn && boothLinks.length > 1) {
+                activeTabBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }, 100);
+
+        window.setupInteractivity();
+    };
+// 🟢 BULLETPROOF IFRAME STRETCHER
+    window.addEventListener('message', function(event) {
+        
+        // --- 1. EXPAND COMMAND (Editor or Viewer) ---
+        if (event.data && (event.data.action === 'openEditorFullscreen' || event.data.action === 'openViewerFullscreen')) {
+            console.log("📡 Fullscreen Signal Received!", event.data.action);
+            
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                // Save original styles to restore later
+                iframe.setAttribute('data-old-css', iframe.style.cssText);
+                
+                // Force Inline Styles (This beats all other CSS rules)
+                iframe.style.setProperty('position', 'fixed', 'important');
+                iframe.style.setProperty('top', '0', 'important');
+                iframe.style.setProperty('left', '0', 'important');
+                iframe.style.setProperty('right', '0', 'important');
+                iframe.style.setProperty('bottom', '0', 'important');
+                iframe.style.setProperty('width', '100%', 'important');
+                iframe.style.setProperty('height', '100%', 'important');
+                iframe.style.setProperty('z-index', '2147483647', 'important');
+                iframe.style.setProperty('max-width', '100%', 'important');
+                iframe.style.setProperty('max-height', '100%', 'important');
+                iframe.style.setProperty('margin', '0', 'important');
+                iframe.style.setProperty('border', 'none', 'important');
+                
+                // Climb up the HTML tree and temporarily KILL any 'transforms' trapping the iframe
+                let parent = iframe.parentElement;
+                while (parent && parent !== document.body) {
+                    parent.setAttribute('data-old-transform', parent.style.transform);
+                    parent.style.setProperty('transform', 'none', 'important');
+                    parent = parent.parentElement;
+                }
+            });
+            // Stop the main page from scrolling while editing
+            document.body.style.setProperty('overflow', 'hidden', 'important'); 
+        }
+
+        // --- 2. SHRINK COMMAND (Editor or Viewer) ---
+        if (event.data && (event.data.action === 'closeEditorFullscreen' || event.data.action === 'closeViewerFullscreen')) {
+            console.log("📡 Close Signal Received!", event.data.action);
+            
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                // Restore original iframe styles
+                iframe.style.cssText = iframe.getAttribute('data-old-css') || '';
+                
+                // Restore original parent transforms
+                let parent = iframe.parentElement;
+                while (parent && parent !== document.body) {
+                    parent.style.transform = parent.getAttribute('data-old-transform') || '';
+                    parent = parent.parentElement;
+                }
+            });
+            // Restore scrolling
+            document.body.style.overflow = ''; 
+        }
+    });
+    window.setupInteractivity = function() {
+        const tabs = document.querySelectorAll('.nav-tab');
+        const frames = document.querySelectorAll('.app-iframe');
+
+        const scrollToActiveTab = (tab) => {
+            tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        };
+
+        // Lazy load background tabs
+        setTimeout(() => {
+            let delay = 0;
+            frames.forEach(frame => {
+                const dataSrc = frame.getAttribute('data-src');
+                if (dataSrc) {
+                    setTimeout(() => { frame.setAttribute('src', dataSrc); }, delay);
+                    delay += 1500; 
+                }
+            });
+        }, 2500);
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                frames.forEach(f => f.classList.remove('active'));
+
+                tab.classList.add('active');
+                scrollToActiveTab(tab);
+
+                const targetId = tab.getAttribute('data-target');
+                const targetFrame = document.getElementById(targetId);
+
+                if (targetFrame) {
+                    const dataSrc = targetFrame.getAttribute('data-src');
+                    const currentSrc = targetFrame.getAttribute('src');
+
+                    if (dataSrc && !currentSrc) {
+                        window.showLoader();
+                        targetFrame.setAttribute('src', dataSrc);
+                        targetFrame.onload = window.hideLoader; 
+                    } else {
+                        window.hideLoader(); 
+                    }
+                    
+                    targetFrame.classList.add('active');
+                    
+                    const newTabNum = targetId.replace('frame-', '');
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.set('tab', newTabNum);
+                    window.history.replaceState({}, '', newUrl);
+                }
+            });
+        });
+    };
+    </script>
+</body>
+</html>

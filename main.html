@@ -299,8 +299,8 @@
     }
 
     window.buildPageContent = function(data, requestedTab, uid, eventId) {
-        //const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
-        //const defaultLogoId = 'egm_fav copy';
+        const customLogoId = data.logoId && data.logoId.trim() !== '' ? data.logoId : 'egm_fav copy';
+        const defaultLogoId = 'egm_fav copy';
         const fontColor = data.fontColor || '#ffffff';
         const bgColor = data.bgColor || '#000000';
         

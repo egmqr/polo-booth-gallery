@@ -394,7 +394,7 @@
             const tabMatch = rawLink.match(/tab=([a-zA-Z0-9_-]+)/);
             const isCommunity = rawLink.includes('isCommunity=true');
 
-            let tabLabel = isCommunity ? 'Community Booth' : `Photobooth ${boothNum}`;
+            let tabLabel = isCommunity ? 'Virtual Booth' : `Photobooth ${boothNum}`;
 
             if (prefixMatch) {
                 // R2 booth — load photo-viewer index.html with prefix param
@@ -407,7 +407,7 @@
                 if (tabMatch) {
                     cleanLink += `&tab=${tabMatch[1]}`;
                     if (tabMatch[1] === 'community') {
-                        tabLabel = "Community Booth";
+                        tabLabel = "Virtual Booth";
                     }
                 }
             }

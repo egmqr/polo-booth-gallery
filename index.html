@@ -1064,17 +1064,7 @@
         return;
       }
 
-      fetch(`${API_URL}/api/gallery?prefix=${encodeURIComponent(targetPrefix)}&limit=60`)
-        .then(res => res.json())
-        .then(res => {
-          if (res.data && isFirstLoad) loadData(res.data);
-        })
-        .catch(err => {
-          console.error("Initial load failed:", err);
-        })
-        .finally(() => {
-          handleDeepSync(); 
-        });
+      handleDeepSync();
     };
 
 

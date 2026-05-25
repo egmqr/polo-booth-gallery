@@ -984,7 +984,7 @@
             if (Array.isArray(files)) {
                 stickerCatalog.custom = files
                     .filter(file => file.name.toLowerCase().endsWith('.png'))
-                    .map(file => `https://cdn.jsdelivr.net/gh/egmqr/photo-viewer/stickers01/${file.name}`);
+                    .map(file => `https://egmqr.github.io/photo-viewer/stickers01/${file.name}`);
                 
                 if (document.getElementById('stickerDrawer').classList.contains('open') && document.querySelector('.sticker-tab.active').innerText.includes('Custom')) {
                     delete stickerCache['custom']; 
@@ -1000,7 +1000,7 @@
             if (Array.isArray(files)) {
                 stickerCatalog.glasses = files
                     .filter(file => file.name.toLowerCase().endsWith('.png'))
-                    .map(file => `https://cdn.jsdelivr.net/gh/egmqr/photo-viewer/stickers02/${file.name}`);
+                    .map(file => `https://egmqr.github.io/photo-viewer/stickers02/${file.name}`);
                 
                 if (document.getElementById('stickerDrawer').classList.contains('open') && document.querySelector('.sticker-tab.active').innerText.includes('Placeholders')) {
                     delete stickerCache['glasses']; 

@@ -313,7 +313,7 @@
             customLogoUrl = `https://cdn.polo-booth.com/users/${uid}/events/${eventId}/assets/logos/${customLogoId}.png`;
         }
 
-        document.getElementById('event-title').innerText = data.eventName;
+        document.getElementById('event-title').innerText = data.pageTitle || data.eventName;
         
         const logoContainer = document.getElementById('logo-container');
         const headerLogo = document.getElementById('header-logo');

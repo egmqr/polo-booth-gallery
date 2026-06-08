@@ -1261,7 +1261,28 @@
     }
 
     function processItem(item) {
-      const [key, name, baseUrl, rawTime] = item;
+      const [key, name, baseUrl, apiRawTime] = item;
+      let rawTime = apiRawTime; // Default to cloud time
+
+      // 🟢 Extract the exact local creation time baked into the filename
+      // Matches both C# Ticks "_638..." and JS Milliseconds "_171..."
+      const nameParts = name.match(/_(\d+)(?:-[a-zA-Z0-9]+)?\.jpe?g$/i);
+      if (nameParts && nameParts[1]) {
+          const numStr = nameParts[1];
+          
+          if (numStr.length === 18) {
+              // Convert 18-digit C# Ticks to Unix Milliseconds
+              // Using BigInt to prevent JS standard integer precision loss
+              const ticks = BigInt(numStr);
+              const epochTicks = 621355968000000000n; // Jan 1, 1970
+              rawTime = Number((ticks - epochTicks) / 10000n);
+          } 
+          else if (numStr.length === 13) {
+              // Convert standard 13-digit Unix Milliseconds (Community Uploads)
+              rawTime = parseInt(numStr, 10);
+          }
+      }
+
       let displayTime = '';
       if (rawTime > 0) {
         const d = new Date(rawTime);
@@ -1269,7 +1290,7 @@
         let h = ph.getHours(), m = ph.getMinutes().toString().padStart(2, '0');
         displayTime = `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
       }
-      // R2: baseUrl is full-res CDN URL — used for both grid and viewer (no separate preview).
+      
       return { id: key, name, baseUrl, url: baseUrl, displayTime, searchStr: `${displayTime} ${name}`.toLowerCase() };
     }
 

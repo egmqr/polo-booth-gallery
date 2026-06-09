@@ -303,6 +303,9 @@
         const defaultLogoId = 'egm_fav copy';
         const fontColor = data.fontColor || '#ffffff';
         const bgColor = data.bgColor || '#000000';
+        const showSearchBar = data.showSearchBar !== false;
+        const showTime = data.showTime !== false;
+        const customTerm = (data.customTerm || '').trim() || 'Photobooth';
         
         const logoOnMain = data.logoOnMain === true; 
 
@@ -394,7 +397,7 @@
             const tabMatch = rawLink.match(/tab=([a-zA-Z0-9_-]+)/);
             const isCommunity = rawLink.includes('isCommunity=true');
 
-            let tabLabel = isCommunity ? 'Virtual Booth' : `Photobooth ${boothNum}`;
+            let tabLabel = isCommunity ? 'Virtual Booth' : `${customTerm} ${boothNum}`;
 
             if (prefixMatch) {
                 // R2 booth — load photo-viewer index.html with prefix param
@@ -436,6 +439,18 @@
             } else {
                 const stickerMatch = rawLink.match(/userStickers=(true|false)/);
                 if (stickerMatch) cleanLink += `&userStickers=${stickerMatch[1]}`;
+            }
+
+            if (!showSearchBar) {
+                cleanLink += '&showSearchBar=false';
+            }
+
+            if (!showTime) {
+                cleanLink += '&showTime=false';
+            }
+
+            if (data.customTerm && data.customTerm.trim() !== '') {
+                cleanLink += `&customTerm=${encodeURIComponent(data.customTerm.trim())}`;
             }
 
             if (boothLinks.length > 1) {

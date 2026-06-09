@@ -322,6 +322,16 @@
       align-items: center;
     }
 
+    .search-row.actions-only {
+      justify-content: center;
+    }
+
+    .search-row.actions-only .input-container {
+      display: none;
+      flex: 0 0 auto;
+      width: auto;
+    }
+
     .input-container { 
       position: relative; 
       width: 100%; 
@@ -651,7 +661,7 @@
   </div>
 
   <div class="search-wrapper">
-    <div class="search-row">
+    <div class="search-row" id="searchRow">
       <div class="input-container" id="searchContainer">
         <input type="text" id="timeSearch" placeholder="Search time or filename..." oninput="handleSearch()" inputmode="search">
         <div id="clearSearch" class="clear-btn" onclick="clearSearch()">&times;</div>
@@ -897,11 +907,15 @@
     let allImages = [], currentIndex = 0, isFirstLoad = true, hasRendered = false, scrollObserver = null;
 
     function applyGalleryDisplayOptions() {
+      const searchRow = document.getElementById('searchRow');
       const searchContainer = document.getElementById('searchContainer');
       const drawerTitle = document.getElementById('stickerDrawerTitle');
 
       if (searchContainer && !galleryShowSearchBar) {
         searchContainer.style.display = 'none';
+        if (searchRow && !isCommunityBooth) {
+          searchRow.classList.add('actions-only');
+        }
       }
 
       if (drawerTitle) {

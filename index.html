@@ -837,7 +837,7 @@
 
   <div id="stickerDrawer">
     <div class="drawer-header">
-      <strong style="color:white;">Photobooth Props</strong>
+      <strong id="stickerDrawerTitle" style="color:white;">Photobooth Props</strong>
       <button class="editor-btn" style="color:#ef4444;" onclick="closeStickerDrawer()">Close</button>
     </div>
    <div class="sticker-tabs" id="stickerTabs">
@@ -859,6 +859,9 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const targetPrefix = urlParams.get('prefix') || urlParams.get('folderId'); // R2: use prefix param
+    const galleryShowSearchBar = urlParams.get('showSearchBar') !== 'false';
+    const galleryShowTime = urlParams.get('showTime') !== 'false';
+    const galleryCustomTerm = (urlParams.get('customTerm') || '').trim() || 'Photobooth';
     
     // 🟢 EXACT ID CATCHER
     function findMyEventId() {
@@ -893,8 +896,21 @@
 
     let allImages = [], currentIndex = 0, isFirstLoad = true, hasRendered = false, scrollObserver = null;
 
+    function applyGalleryDisplayOptions() {
+      const searchContainer = document.getElementById('searchContainer');
+      const drawerTitle = document.getElementById('stickerDrawerTitle');
+
+      if (searchContainer && !galleryShowSearchBar) {
+        searchContainer.style.display = 'none';
+      }
+
+      if (drawerTitle) {
+        drawerTitle.innerText = `${galleryCustomTerm} Props`;
+      }
+    }
 
     window.onload = () => {
+      applyGalleryDisplayOptions();
       
       // 🟢 THE FIX: Aggressive In-App Browser Detection
       const isAppBrowser = /FBAN|FBAV|Messenger|Instagram|Line|Snapchat|TikTok|MicroMessenger/i.test(navigator.userAgent);
@@ -1284,7 +1300,7 @@
       }
 
       let displayTime = '';
-      if (rawTime > 0) {
+      if (galleryShowTime && rawTime > 0) {
         const d = new Date(rawTime);
         let h, m;
 
@@ -1302,7 +1318,8 @@
         displayTime = `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
       }
       
-      return { id: key, name, baseUrl, url: baseUrl, displayTime, searchStr: `${displayTime} ${name}`.toLowerCase() };
+      const searchBase = galleryShowTime ? `${displayTime} ${name}` : name;
+      return { id: key, name, baseUrl, url: baseUrl, displayTime, searchStr: searchBase.toLowerCase() };
     }
 
     function handleSearch() {
@@ -1362,12 +1379,15 @@
       const frag = document.createDocumentFragment();
       window.filteredImages.slice(currentIndex, currentIndex + 24).forEach((img, i) => {
         const card = document.createElement('div'); card.className = 'card';
+        const footerHtml = galleryShowTime
+          ? `<div class="card-footer"><span class="time-value">${img.displayTime}</span></div>`
+          : '';
 
         card.innerHTML = `
           <div class="image-container" onclick="handleImageClick('${img.id}')">
             <img decoding="async" loading="${currentIndex === 0 && i < 12 ? 'eager' : 'lazy'}" src="${img.url}" onload="this.classList.add('loaded')" onerror="handleImageError('${img.id}', this)">
           </div>
-          <div class="card-footer"><span class="time-value">${img.displayTime}</span></div>
+          ${footerHtml}
         `;
         frag.appendChild(card);
       });
@@ -2514,10 +2534,12 @@ function vlUpdateUI(scrub, updateScroll) {
     if (!window.filteredImages || window.filteredImages.length === 0) return;
     const imgData = window.filteredImages[vlIdx];
     const pct = window.filteredImages.length > 1 ? (vlIdx / (window.filteredImages.length - 1)) * 100 : 0;
+    const bubble = document.getElementById('vl-bubble');
 
     document.getElementById('vl-handle').style.left = pct + '%';
-    document.getElementById('vl-bubble').style.left = pct + '%';
-    document.getElementById('vl-bubble').innerText = imgData.displayTime;
+    bubble.style.left = pct + '%';
+    bubble.style.display = galleryShowTime ? '' : 'none';
+    bubble.innerText = galleryShowTime ? imgData.displayTime : '';
     document.getElementById('vl-counter').innerText = `${vlIdx + 1} / ${window.filteredImages.length}`;
 
     // Filmstrip active state

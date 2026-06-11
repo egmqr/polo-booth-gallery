@@ -1583,13 +1583,13 @@ async function hydrateTemplate(template) {
 
     for (const layer of layers) {
         const layerCopy = Object.assign({}, layer);
-        if (layerCopy.LayerType === 'ImageLayer') {
+        if (String(layerCopy.LayerType || '').toLowerCase() === 'imagelayer') {
             layerCopy._image = await loadTemplateImage(layerCopy.ImageBase64 || layerCopy.base64 || layerCopy.ImagePath || layerCopy.src);
         }
         hydratedLayers.push(layerCopy);
     }
 
-    const slot = hydratedLayers.find(l => l.LayerType === 'PhotoSlot') || null;
+    const slot = hydratedLayers.find(l => String(l.LayerType || '').toLowerCase() === 'photoslot') || null;
     const fallbackLayer = slot || hydratedLayers.find(l => l._image) || {};
     const width = canvasWidth || Number(fallbackLayer.Width) || (slot ? Number(slot.X || 0) + Number(slot.Width || 0) : 0);
     const height = canvasHeight || Number(fallbackLayer.Height) || (slot ? Number(slot.Y || 0) + Number(slot.Height || 0) : 0);
@@ -1654,13 +1654,20 @@ function renderTemplateComposite(sourceImgObj, isLandscape, callback) {
             canvas.width = template.width;
             canvas.height = template.height;
             const ctx = canvas.getContext('2d');
+            const hasPhotoSlot = template.layers.some(layer => String(layer.LayerType || '').toLowerCase() === 'photoslot');
             let drewPhoto = false;
 
+            if (!hasPhotoSlot) {
+                drawImageCover(ctx, sourceImgObj, 0, 0, template.width, template.height);
+                drewPhoto = true;
+            }
+
             template.layers.forEach(layer => {
-                if (layer.LayerType === 'PhotoSlot') {
+                const layerType = String(layer.LayerType || '').toLowerCase();
+                if (layerType === 'photoslot') {
                     drawRotatedLayer(ctx, (x, y, width, height) => drawImageCover(ctx, sourceImgObj, x, y, width, height), layer);
                     drewPhoto = true;
-                } else if (layer.LayerType === 'ImageLayer' && layer._image) {
+                } else if (layerType === 'imagelayer' && layer._image) {
                     drawRotatedLayer(ctx, (x, y, width, height) => ctx.drawImage(layer._image, x, y, width, height), layer);
                 }
             });

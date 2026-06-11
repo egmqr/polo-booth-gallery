@@ -441,6 +441,14 @@
                 if (stickerMatch) cleanLink += `&userStickers=${stickerMatch[1]}`;
             }
 
+            const exactTemplateId = mainUrlParams.get('templateId');
+            if (exactTemplateId) {
+                cleanLink += `&templateId=${encodeURIComponent(exactTemplateId)}`;
+            } else {
+                const templateMatch = rawLink.match(/[?&]templateId=([^&]+)/);
+                if (templateMatch) cleanLink += `&templateId=${encodeURIComponent(decodeURIComponent(templateMatch[1]))}`;
+            }
+
             if (!showSearchBar) {
                 cleanLink += '&showSearchBar=false';
             }

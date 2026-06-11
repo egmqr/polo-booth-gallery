@@ -896,9 +896,9 @@
     const isCommunityBooth = urlParams.get('isCommunity') === 'true' || urlParams.get('tab') === 'community';
 
     // 🟢 DUMMY TEMPLATES (Will be replaced dynamically in Phase 2)
-    let templateOverlays = {
-        landscape: null, // Base64 string of the horizontal PNG
-        portrait: null   // Base64 string of the vertical PNG
+    let templateLayouts = {
+        landscape: null,
+        portrait: null
     };
 
     window.filteredImages = []; 
@@ -945,53 +945,13 @@
           // 🟢 THE FIX: Set tracking flag for background download
           window.templateFetchComplete = false; 
           
-          const templateIdParam = urlParams.get('templateId') ? `&templateId=${urlParams.get('templateId')}` : '';
+          const templateIdParam = urlParams.get('templateId') ? `&templateId=${encodeURIComponent(urlParams.get('templateId'))}` : '';
           
-          fetch(`${API_URL}/api/template?prefix=${encodeURIComponent(targetPrefix)}`)
+          fetch(`${API_URL}/api/template?prefix=${encodeURIComponent(targetPrefix)}${templateIdParam}`)
           .then(res => res.json())
           .then(async res => {
               if (res.data && res.data.length > 0) {
-                  for (let t of res.data) {
-                      let largestImageObj = null;
-                      let maxArea = 0;
-                      let imageLayers = t.Layers.filter(l => l.ImageBase64 || l.base64 || l.ImagePath || l.src);
-                      
-                      for (let layer of imageLayers) {
-                          await new Promise((resolve) => {
-                              const tempImg = new Image();
-                              let rawSrc = layer.ImageBase64 || layer.base64 || layer.ImagePath || layer.src;
-                              if (rawSrc) {
-                                  if (rawSrc.startsWith('http')) {
-                                      tempImg.crossOrigin = "anonymous";
-                                  } else if (!rawSrc.startsWith('data:image')) {
-                                      let mime = rawSrc.charAt(0) === '/' ? 'jpeg' : 'png';
-                                      rawSrc = `data:image/${mime};base64,` + rawSrc;
-                                  }
-                                  
-                                  tempImg.onload = function() {
-                                      const area = tempImg.width * tempImg.height;
-                                      if (area >= maxArea) {
-                                          maxArea = area;
-                                          largestImageObj = tempImg; 
-                                      }
-                                      resolve();
-                                  };
-                                  tempImg.onerror = function() { resolve(); };
-                                  tempImg.src = rawSrc;
-                              } else {
-                                  resolve();
-                              }
-                          });
-                      }
-                      
-                      if (largestImageObj) {
-                          if (largestImageObj.width > largestImageObj.height) templateOverlays.landscape = largestImageObj;
-                          else templateOverlays.portrait = largestImageObj;
-                      }
-                  }
-                  
-                  if (!templateOverlays.landscape && templateOverlays.portrait) templateOverlays.landscape = templateOverlays.portrait;
-                  if (!templateOverlays.portrait && templateOverlays.landscape) templateOverlays.portrait = templateOverlays.landscape;
+                  templateLayouts = await buildTemplateLayouts(res.data, urlParams.get('templateId'));
               }
           })
           .catch(err => console.error("Template fetch error:", err))
@@ -1593,8 +1553,132 @@ function openPhotoEditor(event) {
 }
 
 // 🟢 UNIVERSAL COMPOSITE GENERATOR
+function normalizeTemplateImageSrc(rawSrc) {
+    if (!rawSrc) return '';
+    const src = String(rawSrc).trim();
+    if (!src) return '';
+    if (src.startsWith('http') || src.startsWith('data:image')) return src;
+    const mime = src.charAt(0) === '/' ? 'jpeg' : 'png';
+    return `data:image/${mime};base64,${src}`;
+}
+
+function loadTemplateImage(rawSrc) {
+    const src = normalizeTemplateImageSrc(rawSrc);
+    if (!src) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        if (src.startsWith('http')) img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+    });
+}
+
+async function hydrateTemplate(template) {
+    const canvasWidth = Number(template.CanvasWidth) || Number(template.Width) || 0;
+    const canvasHeight = Number(template.CanvasHeight) || Number(template.Height) || 0;
+    const layers = Array.isArray(template.Layers) ? template.Layers : [];
+    const hydratedLayers = [];
+
+    for (const layer of layers) {
+        const layerCopy = Object.assign({}, layer);
+        if (layerCopy.LayerType === 'ImageLayer') {
+            layerCopy._image = await loadTemplateImage(layerCopy.ImageBase64 || layerCopy.base64 || layerCopy.ImagePath || layerCopy.src);
+        }
+        hydratedLayers.push(layerCopy);
+    }
+
+    const slot = hydratedLayers.find(l => l.LayerType === 'PhotoSlot') || null;
+    const fallbackLayer = slot || hydratedLayers.find(l => l._image) || {};
+    const width = canvasWidth || Number(fallbackLayer.Width) || (slot ? Number(slot.X || 0) + Number(slot.Width || 0) : 0);
+    const height = canvasHeight || Number(fallbackLayer.Height) || (slot ? Number(slot.Y || 0) + Number(slot.Height || 0) : 0);
+
+    return { name: template.Name || '', width, height, layers: hydratedLayers, slot };
+}
+
+async function buildTemplateLayouts(templates, requestedTemplateId) {
+    const hydrated = (await Promise.all(templates.map(hydrateTemplate))).filter(t => t.width > 0 && t.height > 0);
+    const requested = requestedTemplateId ? String(requestedTemplateId).trim().toLowerCase() : '';
+    const requestedTemplate = requested
+        ? hydrated.find((t, index) => t.name.toLowerCase() === requested || String(index) === requested)
+        : null;
+
+    if (requestedTemplate) {
+        return {
+            landscape: requestedTemplate,
+            portrait: requestedTemplate
+        };
+    }
+
+    const byName = (orientation) => hydrated.find(t => t.name.toLowerCase().includes(orientation));
+    const byShape = (orientation) => hydrated.find(t => orientation === 'landscape' ? t.width >= t.height : t.height > t.width);
+    const layouts = {
+        landscape: byName('landscape') || byShape('landscape') || null,
+        portrait: byName('portrait') || byShape('portrait') || null
+    };
+
+    if (!layouts.landscape && layouts.portrait) layouts.landscape = layouts.portrait;
+    if (!layouts.portrait && layouts.landscape) layouts.portrait = layouts.landscape;
+    return layouts;
+}
+
+function drawImageCover(ctx, img, x, y, width, height) {
+    const scale = Math.max(width / img.width, height / img.height);
+    const drawWidth = img.width * scale;
+    const drawHeight = img.height * scale;
+    ctx.drawImage(img, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawRotatedLayer(ctx, drawFn, layer) {
+    const x = Number(layer.X) || 0;
+    const y = Number(layer.Y) || 0;
+    const width = Number(layer.Width) || 0;
+    const height = Number(layer.Height) || 0;
+    const rotation = Number(layer.Rotation) || 0;
+
+    if (width <= 0 || height <= 0) return;
+    ctx.save();
+    ctx.translate(x + width / 2, y + height / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    drawFn(-width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
+function renderTemplateComposite(sourceImgObj, isLandscape, callback) {
+    const template = isLandscape ? templateLayouts.landscape : templateLayouts.portrait;
+
+    if (template) {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = template.width;
+            canvas.height = template.height;
+            const ctx = canvas.getContext('2d');
+            let drewPhoto = false;
+
+            template.layers.forEach(layer => {
+                if (layer.LayerType === 'PhotoSlot') {
+                    drawRotatedLayer(ctx, (x, y, width, height) => drawImageCover(ctx, sourceImgObj, x, y, width, height), layer);
+                    drewPhoto = true;
+                } else if (layer.LayerType === 'ImageLayer' && layer._image) {
+                    drawRotatedLayer(ctx, (x, y, width, height) => ctx.drawImage(layer._image, x, y, width, height), layer);
+                }
+            });
+
+            if (!drewPhoto) drawImageCover(ctx, sourceImgObj, 0, 0, template.width, template.height);
+            callback(canvas.toDataURL('image/jpeg', 0.9));
+            return;
+        } catch (err) {
+            console.error("Template render error:", err);
+        }
+    }
+
+    fallbackDraw(sourceImgObj, isLandscape, callback);
+}
+
 function generateCompositePreview(sourceImgObj, isLandscape, callback) {
-    const overlayImg = isLandscape ? templateOverlays.landscape : templateOverlays.portrait;
+    return renderTemplateComposite(sourceImgObj, isLandscape, callback);
+    const overlayImg = null;
     
     // 🟢 THE FIX: We already have the fully decoded Image object! No 'onload' delays needed.
     if (overlayImg) {
@@ -2425,14 +2509,16 @@ function processFinalTemplateLayout(editedBase64, isLandscape) {
         return;
     }
 
-    const overlayImg = isLandscape ? templateOverlays.landscape : templateOverlays.portrait;
-    
-    // 🟢 The overlayImg is already decoded in memory, so we can upload it instantly!
-    if (overlayImg) {
-        executeCanvasUpload(overlayImg.width, overlayImg.height, overlayImg, editedBase64);
-    } else {
-        executeCanvasUpload(isLandscape ? 1800 : 1200, isLandscape ? 1200 : 1800, null, editedBase64);
-    }
+    const tempImg = new Image();
+    tempImg.onload = function() {
+        generateCompositePreview(tempImg, isLandscape, uploadProcessedPhoto);
+    };
+    tempImg.onerror = function() {
+        const ov = document.getElementById('uploadOverlay');
+        if (ov) ov.style.display = 'none';
+        showCustomDialog("Processing Error", "We couldn't process this photo. Please try a different image.", false);
+    };
+    tempImg.src = editedBase64;
 }
 
 function executeCanvasUpload(cW, cH, overlayImg, base64Photo) {

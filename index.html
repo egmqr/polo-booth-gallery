@@ -968,6 +968,7 @@
 
       // --- STICKER SCANNERS ---
       
+      if (stickerCatalog.custom.length === 0 || stickerCatalog.glasses.length === 0) {
       fetch('https://api.github.com/repos/egmqr/photo-viewer/contents/stickers01')
         .then(res => res.json())
         .then(files => {
@@ -999,6 +1000,7 @@
             }
         })
         .catch(err => console.error("Failed to load Placeholders:", err));
+      }
 
       // 🟢 DYNAMIC USER STICKERS SCANNER (Smart Auto-Detect + Mobile Cache Buster!)
       if (window.globalEventId !== 'unknown') {
@@ -2144,8 +2146,25 @@ function applyTextSticker() {
 }
 
 // --- STICKER DRAWERS ---
+const stickerNumberRange = (start, end) => Array.from(
+    { length: end - start + 1 },
+    (_, index) => String(start + index).padStart(2, '0') + '.png'
+);
+const sticker01Files = [
+    ...stickerNumberRange(0, 15),
+    ...stickerNumberRange(26, 45),
+    ...stickerNumberRange(55, 91)
+];
+const sticker02Files = [
+    ...stickerNumberRange(16, 22),
+    ...stickerNumberRange(24, 25),
+    ...stickerNumberRange(46, 54)
+];
+const staticStickerBase = 'https://egmqr.github.io/photo-viewer';
 const stickerCatalog = {
-   userStickers: [], custom: [], glasses: [],
+   userStickers: [],
+    custom: sticker01Files.map(name => `${staticStickerBase}/stickers01/${name}`),
+    glasses: sticker02Files.map(name => `${staticStickerBase}/stickers02/${name}`),
     hats: ["1f451", "1f3a9", "1f9e2", "1f452", "1f393", "1faa6", "26d1", "1f380", "1f9e3"],
     masks: ["1f3ad", "1f47d", "1f47b", "1f480", "1f921", "1f383", "1f47a", "1f479", "1f916", "1f435", "1f436", "1f431", "1f42f", "1f984"],
     props: ["1f3a4", "1f3a7", "1f3b8", "1f3b7", "1f4f7", "1fa84", "2694", "1f3c6", "1f3c5", "1f52d", "1f37e", "1f378"],
@@ -2181,7 +2200,7 @@ function loadStickerCategory(category, btnElement) {
 
     let html = '';
     stickerCatalog[category].forEach(code => {
-        const url = (code.startsWith('http')) ? code : `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${code}.png`;
+        const url = (code.startsWith('http') || code.endsWith('.png')) ? code : `https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/${code}.png`;
         // 👇 Removed crossorigin="anonymous"
         html += `<img class="sticker-item" src="${url}" loading="lazy" decoding="async" onclick="addSticker('${url}', 120, 120)">`;
     });

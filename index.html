@@ -487,6 +487,7 @@
 
     .card { 
       background: #eee; position: relative; cursor: pointer; aspect-ratio: 1 / 1; overflow: hidden;
+      contain: layout paint style;
     }
 
     .image-container { 
@@ -904,7 +905,53 @@
     window.filteredImages = []; 
     window.deadImageIds = new Set();
 
-    let allImages = [], currentIndex = 0, isFirstLoad = true, hasRendered = false, scrollObserver = null;
+    const galleryConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const galleryIsMobile = window.matchMedia('(max-width: 767px)').matches;
+    const galleryIsConstrained = Boolean(galleryConnection?.saveData) || /(^|-)2g$/.test(galleryConnection?.effectiveType || '');
+    const galleryPageSize = galleryIsConstrained ? 9 : (galleryIsMobile ? 12 : 24);
+    const galleryEagerCount = galleryIsMobile ? 3 : 8;
+    const galleryImageRootMargin = galleryIsConstrained ? '100px' : (galleryIsMobile ? '250px' : '600px');
+    let allImages = [], currentIndex = 0, isFirstLoad = true, hasRendered = false, scrollObserver = null, galleryImageObserver = null;
+    let imageOriginPreconnected = false;
+
+    function preconnectImageOrigin(url) {
+      if (imageOriginPreconnected || !url) return;
+      try {
+        const origin = new URL(url, window.location.href).origin;
+        ['preconnect', 'dns-prefetch'].forEach(rel => {
+          const link = document.createElement('link');
+          link.rel = rel;
+          link.href = origin;
+          if (rel === 'preconnect') link.crossOrigin = 'anonymous';
+          document.head.appendChild(link);
+        });
+        imageOriginPreconnected = true;
+      } catch { }
+    }
+
+    function observeDeferredGalleryImages() {
+      const pending = document.querySelectorAll('#gallery img[data-src]:not([data-observed])');
+      if (!pending.length) return;
+      if (!('IntersectionObserver' in window)) {
+        pending.forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
+        return;
+      }
+      if (!galleryImageObserver) {
+        galleryImageObserver = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const img = entry.target;
+            galleryImageObserver.unobserve(img);
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+          });
+        }, { rootMargin: galleryImageRootMargin });
+      }
+      pending.forEach(img => {
+        img.dataset.observed = 'true';
+        galleryImageObserver.observe(img);
+      });
+    }
 
     function applyGalleryDisplayOptions() {
       const searchRow = document.getElementById('searchRow');
@@ -1295,6 +1342,7 @@
       }
       
       const searchBase = galleryShowTime ? `${displayTime} ${name}` : name;
+      preconnectImageOrigin(baseUrl);
       return { id: key, name, baseUrl, url: baseUrl, displayTime, searchStr: searchBase.toLowerCase() };
     }
 
@@ -1330,8 +1378,9 @@
         galleryEl.style.minHeight = galleryEl.offsetHeight + 'px';
       }
 
+      if (galleryImageObserver) galleryImageObserver.disconnect();
       galleryEl.innerHTML = ''; 
-      const targetCount = Math.max(currentIndex, 24);
+      const targetCount = Math.max(currentIndex, galleryPageSize);
       currentIndex = 0;
 
       if (window.filteredImages.length === 0) {
@@ -1353,26 +1402,31 @@
     function renderNextPage() {
       if (currentIndex >= window.filteredImages.length) return;
       const frag = document.createDocumentFragment();
-      window.filteredImages.slice(currentIndex, currentIndex + 24).forEach((img, i) => {
+      const pageStart = currentIndex;
+      window.filteredImages.slice(pageStart, pageStart + galleryPageSize).forEach((img, i) => {
         const card = document.createElement('div'); card.className = 'card';
+        const isPriorityImage = pageStart === 0 && i < galleryEagerCount;
+        const sourceAttribute = isPriorityImage ? `src="${img.url}"` : `data-src="${img.url}"`;
         const footerHtml = galleryShowTime
           ? `<div class="card-footer"><span class="time-value">${img.displayTime}</span></div>`
           : '';
 
         card.innerHTML = `
           <div class="image-container" onclick="handleImageClick('${img.id}')">
-            <img decoding="async" loading="${currentIndex === 0 && i < 12 ? 'eager' : 'lazy'}" src="${img.url}" onload="this.classList.add('loaded')" onerror="handleImageError('${img.id}', this)">
+            <img decoding="async" loading="${isPriorityImage ? 'eager' : 'lazy'}" fetchpriority="${isPriorityImage ? 'high' : 'low'}" ${sourceAttribute} onload="this.classList.add('loaded')" onerror="handleImageError('${img.id}', this)">
           </div>
           ${footerHtml}
         `;
         frag.appendChild(card);
       });
-      document.getElementById('gallery').appendChild(frag); currentIndex += 24;
+      document.getElementById('gallery').appendChild(frag);
+      currentIndex += galleryPageSize;
+      observeDeferredGalleryImages();
     }
 
     function setupInfiniteScroll() {
       if (scrollObserver) scrollObserver.disconnect();
-      scrollObserver = new IntersectionObserver(e => { if(e[0].isIntersecting) renderNextPage(); }, {rootMargin: '400px'});
+      scrollObserver = new IntersectionObserver(e => { if(e[0].isIntersecting) renderNextPage(); }, {rootMargin: galleryImageRootMargin});
       scrollObserver.observe(document.getElementById('sentinel'));
     }
 
@@ -2618,9 +2672,10 @@ function vlBuildFilmstrip(forceScroll) {
     const savedScroll = wrapper.scrollLeft;
     let html = '';
     window.filteredImages.forEach((f, i) => {
-        html += `<img id="vlt-${i}" class="vl-thumb ${i === vlIdx ? 'active' : ''}" src="${f.baseUrl}" loading="lazy" onclick="vlNavigateTo(${i})" onerror="this.style.display='none'">`;
+        html += `<img id="vlt-${i}" class="vl-thumb ${i === vlIdx ? 'active' : ''}" data-src="${f.baseUrl}" loading="lazy" decoding="async" fetchpriority="low" onclick="vlNavigateTo(${i})" onerror="this.style.display='none'">`;
     });
     wrapper.innerHTML = html;
+    vlHydrateFilmstripThumbs(vlIdx);
 
     if (forceScroll) {
         const active = document.getElementById('vlt-' + vlIdx);
@@ -2631,6 +2686,19 @@ function vlBuildFilmstrip(forceScroll) {
         }
     } else {
         wrapper.scrollLeft = savedScroll;
+    }
+}
+
+function vlHydrateFilmstripThumbs(index) {
+    const radius = galleryIsConstrained ? 2 : (galleryIsMobile ? 5 : 10);
+    const start = Math.max(0, index - radius);
+    const end = Math.min(window.filteredImages.length - 1, index + radius);
+    for (let i = start; i <= end; i++) {
+        const thumb = document.getElementById('vlt-' + i);
+        if (thumb?.dataset.src) {
+            thumb.src = thumb.dataset.src;
+            thumb.removeAttribute('data-src');
+        }
     }
 }
 
@@ -2648,12 +2716,16 @@ function vlShowHint(msg, persist) {
 
 function vlPreloadNeighbors(index) {
     if (!window.filteredImages || window.filteredImages.length === 0) return;
+    if (galleryIsConstrained) return;
     const preload = (idx) => {
         if (idx >= 0 && idx < window.filteredImages.length) {
-            const p = new Image(); p.src = window.filteredImages[idx].baseUrl;
+            const p = new Image();
+            p.fetchPriority = 'low';
+            p.src = window.filteredImages[idx].baseUrl;
         }
     };
-    preload(index + 1); preload(index - 1);
+    preload(index + 1);
+    if (!galleryIsMobile) preload(index - 1);
 }
 
 function vlUpdateUI(scrub, updateScroll) {
@@ -2669,6 +2741,7 @@ function vlUpdateUI(scrub, updateScroll) {
     document.getElementById('vl-counter').innerText = `${vlIdx + 1} / ${window.filteredImages.length}`;
 
     // Filmstrip active state
+    vlHydrateFilmstripThumbs(vlIdx);
     document.querySelectorAll('#vl-filmstrip .vl-thumb.active').forEach(el => el.classList.remove('active'));
     const activeThumb = document.getElementById('vlt-' + vlIdx);
     if (activeThumb) {
@@ -2704,23 +2777,6 @@ function vlUpdateUI(scrub, updateScroll) {
             if (vlIdx !== renderIndex) return;
             imgEl.src = previewUrl;
             imgEl.style.opacity = 1;
-
-            vlIdleTimer = setTimeout(() => {
-                if (vlIdx !== renderIndex) return;
-                const hdUrl = imgData.baseUrl;
-                const isData = previewUrl.startsWith('data:');
-                if (!isData) vlShowHint("Loading HD photo...", true);
-
-                vlActiveHdLoader = new Image();
-                vlActiveHdLoader.onload = () => {
-                    vlActiveHdLoader.onload = null;
-                    if (vlIdx !== renderIndex) return;
-                    imgEl.src = hdUrl;
-                    if (!isData) vlShowHint(vlIsIOS ? "HD loaded. Long press image then Save to Photos" : "HD photo is loaded.");
-                };
-                vlActiveHdLoader.onerror = () => { if (!isData) vlShowHint("Failed to load HD photo", false); };
-                vlActiveHdLoader.src = hdUrl;
-            }, 800);
         };
         preloader.onerror = () => {
             if (vlIdx !== renderIndex) return;
